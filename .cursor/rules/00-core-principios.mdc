@@ -1,0 +1,47 @@
+---
+description: Regras de desenvolvimento — princípios fundamentais 
+alwaysApply: true
+---
+
+# 🎯 REGRAS DE DESENVOLVIMENTO
+
+## 📋 PRINCÍPIOS FUNDAMENTAIS
+
+### 1. ARQUITETURA EM CAMADAS (OBRIGATÓRIO)
+
+- Controller → Service → Repository → Model
+- Separação de responsabilidades clara
+- Injeção de dependências via construtor
+- Nunca pular camadas (ex.: Controller chamando Repository diretamente)
+
+### 2. VALIDAÇÃO MANUAL SIMPLES (OBRIGATÓRIO)
+
+- SEMPRE usar validação manual (sem Joi, Yup, etc.)
+- SEMPRE validar nas rotas com middleware
+- NUNCA duplicar validações entre Controller e Service
+- SEMPRE retornar array de strings com erros em português
+
+### 3. TRATAMENTO DE ERROS (OBRIGATÓRIO)
+
+- SEMPRE usar AppError para erros customizados
+- SEMPRE usar next(error) no Controller
+- SEMPRE retornar mensagens em português
+- NUNCA usar console.log para erros
+
+### 4. ESTRUTURA DE PASTAS (OBRIGATÓRIO)
+
+src/modules/[resource]/
+├── controllers/
+├── services/
+├── repositories/
+├── models/
+├── dtos/
+├── routes.ts
+└── README.md
+
+### 5. DTOs E INTERFACES (OBRIGATÓRIO)
+
+- SEMPRE criar DTOs separados (Request, Response, Update)
+- SEMPRE usar interfaces TypeScript bem definidas
+- SEMPRE incluir timestamps (createdAt, updatedAt)
+- NUNCA expor senhas em DTOs de resposta

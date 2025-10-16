@@ -1,0 +1,321 @@
+---
+description: Regras completas de desenvolvimento (Sistema Jogos UNIFUNEC)
+alwaysApply: true
+---
+
+# 🎯 REGRAS DE DESENVOLVIMENTO - SISTEMA JOGOS UNIFUNEC
+
+## 📋 PRINCÍPIOS FUNDAMENTAIS
+
+### 1. ARQUITETURA EM CAMADAS (OBRIGATÓRIO)
+
+- Controller → Service → Repository → Model
+- Separação de responsabilidades clara
+- Injeção de dependências via construtor
+- Nunca pular camadas (ex.: Controller chamando Repository diretamente)
+
+### 2. VALIDAÇÃO MANUAL SIMPLES (OBRIGATÓRIO)
+
+- SEMPRE usar validação manual (sem Joi, Yup, etc.)
+- SEMPRE validar nas rotas com middleware
+- NUNCA duplicar validações entre Controller e Service
+- SEMPRE retornar array de strings com erros em português
+
+### 3. TRATAMENTO DE ERROS (OBRIGATÓRIO)
+
+- SEMPRE usar AppError para erros customizados
+- SEMPRE usar next(error) no Controller
+- SEMPRE retornar mensagens em português
+- NUNCA usar console.log para erros
+
+### 4. ESTRUTURA DE PASTAS (OBRIGATÓRIO)
+
+src/modules/[resource]/
+├── controllers/
+├── services/
+├── repositories/
+├── models/
+├── dtos/
+├── routes.ts
+└── README.md
+
+### 5. DTOs E INTERFACES (OBRIGATÓRIO)
+
+- SEMPRE criar DTOs separados (Request, Response, Update)
+- SEMPRE usar interfaces TypeScript bem definidas
+- SEMPRE incluir timestamps (createdAt, updatedAt)
+- NUNCA expor senhas em DTOs de resposta
+
+## 🔧 PADRÕES DE CÓDIGO
+
+### Controller (HTTP Layer) — CORRETO
+
+```ts
+async createUser(req: Request, res: Response, next: NextFunction): Promise<any> {
+  try {
+    const user = await this.userService.createUser(req.body);
+    return res.status(201).json(user);
+  } catch (error) {
+    next(error);
+  }
+}
+```
+
+### Controller — ERRADO
+
+```ts
+async createUser(req: Request, res: Response): Promise<any> {
+  const user = await this.userService.createUser(req.body);
+  return res.status(201).json(user);
+}
+```
+
+### Service (Regra de Negócio) — CORRETO
+
+```ts
+async createUser(user: UserRequestDTO): Promise<UserResponseDTO> {
+  user.password = await hashPassword(user.password);
+  const userResponse = await this.userRepository.createUser(user);
+  return userResponse.toResponse();
+}
+```
+
+### Service — ERRADO (validação aqui é proibida)
+
+```ts
+async createUser(user: UserRequestDTO): Promise<UserResponseDTO> {
+  if (!user.name) throw new Error("Nome obrigatório");
+  return await this.userRepository.createUser(user);
+}
+```
+
+### Repository (Acesso a Dados) — CORRETO
+
+```ts
+async createUser(user: UserRequestDTO): Promise<UserModel> {
+  const emailFound = await prisma.user.findUnique({ where: { email: user.email } });
+  if (emailFound) throw new AppError("E-mail já cadastrado", 400);
+
+  const createdUser = await prisma.user.create({ data: user.dataToPrisma() });
+  return UserModel.prismaToModel(createdUser);
+}
+```
+
+### Repository — ERRADO
+
+```ts
+async createUser(user: UserRequestDTO): Promise<UserModel> {
+  return await prisma.user.create({ data: user });
+}
+```
+
+## 🛡️ VALIDAÇÕES OBRIGATÓRIAS
+
+### 1) Validação de Email
+
+```ts
+export function validateEmailFormat(email: string): string[] {
+  const errors: string[] = [];
+  if (!email) {
+    errors.push("E-mail é obrigatório");
+    return errors;
+  }
+  // regex robusta para formato de e-mail
+  return errors;
+}
+```
+
+### 2) Validação de ID
+
+```ts
+export function validateUserId(params: any): string[] {
+  const errors: string[] = [];
+  if (!params.id) errors.push("ID é obrigatório");
+  else if (isNaN(Number(params.id))) errors.push("ID deve ser um número");
+  else if (Number(params.id) <= 0)
+    errors.push("ID deve ser um número positivo");
+  return errors;
+}
+```
+
+### 3) Validação de Paginação
+
+```ts
+export function validatePaginationQuery(query: any): string[] {
+  const errors: string[] = [];
+  if (query.page !== undefined) {
+    const pageNum = Number(query.page);
+    if (isNaN(pageNum) || !Number.isInteger(pageNum) || pageNum < 1) {
+      errors.push("Page deve ser um número inteiro positivo");
+    }
+  }
+  return errors;
+}
+```
+
+## 🔐 SEGURANÇA
+
+### Hash de Senhas (SEMPRE)
+
+```ts
+import { hashPassword } from '../../shared/utils/Hash';
+async createUser(user: UserRequestDTO): Promise<UserResponseDTO> {
+  user.password = await hashPassword(user.password);
+  // ...
+}
+```
+
+### Timestamps Automáticos (Prisma)
+
+```prisma
+model User {
+  id        Int      @id @default(autoincrement())
+  // outros campos...
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+```
+
+### Validação de Dados (exemplo CreateUser)
+
+```ts
+export function validateCreateUser(data: any): string[] {
+  const errors: string[] = [];
+  if (!data.name || data.name.length < 2) {
+    errors.push("Nome deve ter pelo menos 2 caracteres");
+  }
+  return errors;
+}
+```
+
+## 📊 PAGINAÇÃO OBRIGATÓRIA
+
+### Interface
+
+```ts
+interface PaginationResponse<T> {
+  data: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+```
+
+### Implementação no Repository
+
+```ts
+async listUsersPaginated(query: PaginationQuery): Promise<PaginationResponse<UserModel>> {
+  const page = query.page || 1;
+  const limit = query.limit || 10;
+  const skip = (page - 1) * limit;
+
+  const [users, total] = await Promise.all([
+    prisma.user.findMany({ where, skip, take: limit, orderBy: { createdAt: 'desc' } }),
+    prisma.user.count({ where })
+  ]);
+
+  const totalPages = Math.ceil(total / limit);
+  return {
+    data: users.map(user => UserModel.prismaToModel(user)),
+    pagination: { page, limit, total, totalPages, hasNext: page < totalPages, hasPrev: page > 1 }
+  };
+}
+```
+
+## 📝 DOCUMENTAÇÃO OBRIGATÓRIA
+
+### README.md em cada módulo
+
+- SEMPRE criar README detalhado com exemplos de requisições, códigos de resposta, validações e regras.
+
+### Collection Postman
+
+- SEMPRE criar collection completa com exemplos de resposta, variáveis de ambiente e scripts de teste.
+
+### Pasta de Testes
+
+src/modules/[resource]/teste/
+├── Collection_Postman.json
+├── Exemplos_Completos.md
+├── Cenarios_Teste.md
+└── README.md
+
+## 🚫 O QUE NUNCA FAZER
+
+- Usar bibliotecas de validação externas (Joi, Yup, etc.)
+- Duplicar validações entre camadas
+- Usar console.log para erros
+- Pular camadas da arquitetura
+- Expor senhas em DTOs de resposta
+- Usar IDs fixos em testes
+- Criar módulos sem documentação
+- Usar any sem necessidade
+- Não tratar erros adequadamente
+- Criar rotas sem validação
+
+### ❌ Estrutura proibida (exemplo)
+
+```ts
+async createUser(req: Request, res: Response): Promise<any> {
+  if (!req.body.name) return res.status(400).json({ error: "Nome obrigatório" });
+  const user = await this.userRepository.createUser(req.body);
+  return res.status(201).json(user);
+}
+```
+
+## ✅ CHECKLIST OBRIGATÓRIO
+
+### Por módulo
+
+- [ ] Estrutura de pastas correta
+- [ ] Controller, Service, Repository, Model implementados
+- [ ] DTOs separados (Request, Response, Update)
+- [ ] Validações nas rotas com middleware
+- [ ] Tratamento de erros com AppError
+- [ ] Hash de senhas implementado
+- [ ] Timestamps no schema Prisma
+- [ ] Paginação implementada
+- [ ] README.md completo
+- [ ] Collection Postman criada
+- [ ] Pasta de testes com exemplos
+
+### Por endpoint
+
+- [ ] Validação de entrada
+- [ ] Tratamento de erros
+- [ ] Resposta padronizada
+- [ ] Códigos de status corretos
+- [ ] Documentação atualizada
+
+## 🎯 OBJETIVOS DE QUALIDADE
+
+### Código
+
+- Consistente, legível, testável, seguro e escalável (camadas)
+
+### Documentação
+
+- Completa, atualizada, testável (Postman) e acessível
+
+## 🚀 APLICAÇÃO DAS REGRAS
+
+### SEMPRE seguir:
+
+1. Arquitetura em camadas
+2. Validação manual
+3. Tratamento de erros
+4. Documentação completa
+5. Testes organizados
+
+### NUNCA quebrar:
+
+1. Não usar libs de validação externas
+2. Não duplicar validações
+3. Não pular camadas
+4. Não criar módulos sem documentação
+5. Não usar console.log para erros

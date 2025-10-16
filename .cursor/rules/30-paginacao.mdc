@@ -1,0 +1,56 @@
+---
+description: Padrão de paginação (interfaces + repository)
+alwaysApply: true
+globs: src/**/*.{ts,tsx}
+---
+
+## 📊 PAGINAÇÃO OBRIGATÓRIA
+
+### Interface
+
+```ts
+// Interface de resposta de paginação genérica
+interface RespostaPaginada<T> {
+  dados: T[];
+  paginacao: {
+    pagina: number;
+    limite: number;
+    total: number;
+    totalPaginas: number;
+    temProxima: boolean;
+    temAnterior: boolean;
+  };
+}
+
+// Exemplo de implementação no repositório
+async function listarUsuariosPaginado(
+  query: ConsultaPaginacao
+): Promise<RespostaPaginada<UsuarioModel>> {
+  const pagina = query.pagina || 1;
+  const limite = query.limite || 10;
+  const pular = (pagina - 1) * limite;
+
+  const [usuarios, total] = await Promise.all([
+    prisma.usuario.findMany({
+      where,
+      skip: pular,
+      take: limite,
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.usuario.count({ where }),
+  ]);
+
+  const totalPaginas = Math.ceil(total / limite);
+  return {
+    dados: usuarios.map((usuario) => UsuarioModel.prismaParaModel(usuario)),
+    paginacao: {
+      pagina,
+      limite,
+      total,
+      totalPaginas,
+      temProxima: pagina < totalPaginas,
+      temAnterior: pagina > 1,
+    },
+  };
+}
+```

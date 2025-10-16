@@ -1,0 +1,22 @@
+---
+description: Documentação obrigatória e insumos de teste/Postman
+alwaysApply: true
+---
+
+## 📝 DOCUMENTAÇÃO OBRIGATÓRIA
+
+### README.md em cada módulo
+
+- SEMPRE criar README detalhado com exemplos de requisições, códigos de resposta, validações e regras.
+
+### Collection Postman
+
+- SEMPRE criar collection completa com exemplos de resposta, variáveis de ambiente e scripts de teste.
+
+### Pasta de Testes
+
+src/modules/[resource]/teste/
+├── Collection_Postman.json
+├── Exemplos_Completos.md
+├── Cenarios_Teste.md
+└── README.md

@@ -1,0 +1,79 @@
+---
+description: Itens proibidos, checklist por módulo/endpoint e objetivos de qualidade
+alwaysApply: true
+---
+
+## 🚫 O QUE NUNCA FAZER
+
+- Usar bibliotecas de validação externas (Joi, Yup, etc.)
+- Duplicar validações entre camadas
+- Usar console.log para erros
+- Pular camadas da arquitetura
+- Expor senhas em DTOs de resposta
+- Usar IDs fixos em testes
+- Criar módulos sem documentação
+- Usar any sem necessidade
+- Não tratar erros adequadamente
+- Criar rotas sem validação
+
+### ❌ Estrutura proibida (exemplo)
+
+```ts
+async criarUsuario(req: Request, res: Response): Promise<any> {
+  if (!req.body.name) return res.status(400).json({ error: "Nome obrigatório" });
+  const user = await this.userRepository.criarUsuario(req.body);
+  return res.status(201).json(user);
+}
+```
+
+## ✅ CHECKLIST OBRIGATÓRIO
+
+### Por módulo
+
+- [ ] Estrutura de pastas correta
+- [ ] Controller, Service, Repository, Model implementados
+- [ ] DTOs separados (Request, Response, Update)
+- [ ] Validações nas rotas com middleware
+- [ ] Tratamento de erros com AppError
+- [ ] Hash de senhas implementado
+- [ ] Timestamps no schema Prisma
+- [ ] Paginação implementada
+- [ ] README.md completo
+- [ ] Collection Postman criada
+- [ ] Pasta de testes com exemplos
+
+### Por endpoint
+
+- [ ] Validação de entrada
+- [ ] Tratamento de erros
+- [ ] Resposta padronizada
+- [ ] Códigos de status corretos
+- [ ] Documentação atualizada
+
+## 🎯 OBJETIVOS DE QUALIDADE
+
+### Código
+
+- Consistente, legível, testável, seguro e escalável (camadas)
+
+### Documentação
+
+- Completa, atualizada, testável (Postman) e acessível
+
+## 🚀 APLICAÇÃO DAS REGRAS
+
+### SEMPRE seguir:
+
+1. Arquitetura em camadas
+2. Validação manual
+3. Tratamento de erros
+4. Documentação completa
+5. Testes organizados
+
+### NUNCA quebrar:
+
+1. Não usar libs de validação externas
+2. Não duplicar validações
+3. Não pular camadas
+4. Não criar módulos sem documentação
+5. Não usar console.log para erros
