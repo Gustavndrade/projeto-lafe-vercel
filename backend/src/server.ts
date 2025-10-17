@@ -22,7 +22,7 @@ app.use((req, res, next) => {
 app.use(routes()); // ← precisa vir antes do errorHandler
 
 // Middleware de tratamento de erros (sempre no final)
-app.use(errorHandler);
+// app.use(errorHandler);
 
 // Porta (Render define via process.env.PORT)
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
